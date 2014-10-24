@@ -1,108 +1,98 @@
 package jobs;
 
 import java.io.IOException;
-import java.util.*;
 
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.conf.*;
-import org.apache.hadoop.io.*;
-import org.apache.hadoop.mapreduce.*;
+import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
- 
 
-//----------------------------------------------------------------------------------------
+
+
+//-------------------------------------------------------------------------------------
 public class Union 
 	{
- 
-	//------------------------------------------------------------------------------------
-    public static class Map extends Mapper<LongWritable, Text, Text, Text> 
-    	{
-        
-    	public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException 
-    		{
 
-    		
-    		//New Text for Relation Name
-    		String[] stringvalues;
-    		Text relation = new Text();  
-    		Text tuple = new Text();
+	
+	//---------------------------------------------------------------------------------
+	public static class Map extends Mapper<Object, Text, Text, Text> 
+		{
 
-    		
-    		//Split String
-    		String strTuple = null;
-    		String line = value.toString();
-    		stringvalues = line.split(",");
+		private Text keytext = new Text();
+		private Text valuetext = new Text();
+		
+		@Override
+		public void map(Object key, Text value, Context context) throws IOException, InterruptedException 
+			{
+		
+			//Split into elements
+			String[] elements;
+			String strvalues = new String();
+			elements = value.toString().split(",");
+
+			//Add to string
+			for (int i=1;i<elements.length-1;i++)
+				{
+				strvalues = strvalues + elements[i] + ",";  
+				}
+			strvalues = strvalues + elements[elements.length-1];
+
+			//Emit Key and Value
+			keytext.set(elements[0]);
+			valuetext.set(strvalues);
+			context.write(valuetext,valuetext);
+
+			}
+		}
 
 
-    		//Set Relation Name
-    		relation.set(stringvalues[0]);
-    		
-    		
-    		//Combine values into key and tuple
-    		for (int i=1;i<stringvalues.length;i++)
-    			{
-    			strTuple = strTuple + "," + stringvalues[i];
-    			}
-    		tuple.set(strTuple);
+	
+	//---------------------------------------------------------------------------------
+	public static class Reduce extends Reducer<Text, Text, Text, Text> 
+		{
+  
+		//private Text test = new Text();
+		
+		@Override
+		public void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException 
+			{
+			context.write(key, key);
+			}
+		}
 
-    		
-    		//Emit to Reducer
-    		context.write(tuple,tuple);
 
-    		}
-    	}
-
-    
-
-	//------------------------------------------------------------------------------------
-    public static class Reduce extends Reducer<Text, Text, Text, Text> 
-    	{
-        
-    	public void reduce(Text key, Iterator<Text> values, Context context) throws IOException, InterruptedException 
-    		{
-            
-    		//Loop through values bag
-			//int sum = 0;
-			//while (values.hasNext()) 
-				//{
-			//	sum += values.next().get();
-			//	}
-    		
-			//Write out
-    		//context.write(key,new IntWritable(sum));
-
-    		}
-    	}
- 
-
-	//------------------------------------------------------------------------------------
-    //Main method
-    public static void main(String[] args) throws Exception 
-    	{
-    	
-    	//Read Parameters
-        Path inPath = new Path(args[0]);
-        Path outPath =  new Path(args[1]);
-        
-        //Configuration
+	
+	//---------------------------------------------------------------------------------
+	public static void main(String[] args) throws Exception 
+		{
+   
+		//Job Configuration
         Job job = Job.getInstance(new Configuration());
-        job.setJarByClass(MatrixMultiplication.class);
         job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(Text.class);
-        job.setMapperClass(Map.class);
-        job.setReducerClass(Reduce.class); 
-        job.setInputFormatClass(TextInputFormat.class);
-        job.setOutputFormatClass(TextOutputFormat.class); 
+        job.setOutputValueClass(Text.class); 
+        job.setMapperClass(Map.class); 
+        job.setReducerClass(Reduce.class);
 
-        //Set IO
-        FileInputFormat.addInputPath(job, inPath);
-        FileOutputFormat.setOutputPath(job, outPath);
+        //Input and Output classes
+        job.setInputFormatClass(TextInputFormat.class);
+        job.setOutputFormatClass(TextOutputFormat.class);
+
+        
+        //File IO
+        FileInputFormat.setInputPaths(job, new Path(args[0]));
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));
  
         //Run
+        job.setJarByClass(WordCount.class);
         job.waitForCompletion(true);
-    	}
+         
+         
+		}
 	
 	}

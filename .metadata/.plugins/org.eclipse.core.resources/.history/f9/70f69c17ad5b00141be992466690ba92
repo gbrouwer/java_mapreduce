@@ -1,0 +1,98 @@
+package jobs;
+
+import java.io.IOException;
+
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+
+
+
+//-------------------------------------------------------------------------------------
+public class Distinct 
+	{
+
+	
+	//---------------------------------------------------------------------------------
+	public static class Map extends Mapper<Object, Text, Text, Text> 
+		{
+
+		private Text keytext = new Text();
+		private Text valuetext = new Text();
+		
+		@Override
+		public void map(Object key, Text value, Context context) throws IOException, InterruptedException 
+			{
+		
+			//Split into elements
+			String[] elements;
+			String strvalues = new String();
+			elements = value.toString().split(",");
+
+			//Add to string
+			for (int i=1;i<elements.length-1;i++)
+				{
+				strvalues = strvalues + elements[i] + ",";  
+				}
+			strvalues = strvalues + elements[elements.length-1];
+
+			//Emit Key and Value
+			keytext.set(elements[0]);
+			valuetext.set(strvalues);
+			context.write(valuetext,valuetext);
+
+			}
+		}
+
+
+	
+	//---------------------------------------------------------------------------------
+	public static class Reduce extends Reducer<Text, Text, Text, Text> 
+		{
+  
+		//private Text test = new Text();
+		
+		@Override
+		public void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException 
+			{
+			context.write(key, key);
+			}
+		}
+
+
+	
+	//---------------------------------------------------------------------------------
+	public static void main(String[] args) throws Exception 
+		{
+   
+		//Job Configuration
+        Job job = Job.getInstance(new Configuration());
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(Text.class); 
+        job.setMapperClass(Map.class); 
+        job.setReducerClass(Reduce.class);
+
+        //Input and Output classes
+        job.setInputFormatClass(TextInputFormat.class);
+        job.setOutputFormatClass(TextOutputFormat.class);
+
+        
+        //File IO
+        FileInputFormat.setInputPaths(job, new Path(args[0]));
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+ 
+        //Run
+        job.setJarByClass(WordCount.class);
+        job.waitForCompletion(true);
+         
+         
+		}
+	
+	}

@@ -1,0 +1,105 @@
+package jobs;
+
+import java.io.IOException;
+import java.util.Iterator;
+
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+
+
+
+//-------------------------------------------------------------------------------------
+public class Union 
+	{
+
+	
+	//---------------------------------------------------------------------------------
+	public static class Map extends Mapper<Object, Text, Text, Text> 
+		{
+
+		private Text keytext = new Text();
+		private Text valuetext = new Text();
+		
+		@Override
+		public void map(Object key, Text value, Context context) throws IOException, InterruptedException 
+			{
+		
+			//Split into elements
+			String[] elements;
+			String strvalues = null;
+			elements = value.toString().split(",");
+
+			//Add to string
+			for (int i=1;i<elements.length;i++)
+				{
+				strvalues = strvalues + elements[0] + ",";  
+				}
+
+			//Emit Key and Value
+			keytext.set(elements[0]);
+			valuetext.set(strvalues);
+			context.write(keytext,valuetext);
+
+			}
+		}
+
+
+	
+	//---------------------------------------------------------------------------------
+	public static class Reduce extends Reducer<Text, IntWritable, Text, IntWritable> 
+		{
+  
+		private IntWritable totalWordCount = new IntWritable();
+  
+		@Override
+		public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException 
+			{
+			int wordCount = 0;
+			Iterator<IntWritable> it = values.iterator();
+			while (it.hasNext()) 
+				{
+				wordCount += it.next().get();
+				}
+			totalWordCount.set(wordCount);
+			context.write(key, totalWordCount);
+			}
+		}
+
+
+	
+	//---------------------------------------------------------------------------------
+	public static void main(String[] args) throws Exception 
+		{
+   
+		//Job Configuration
+        Job job = Job.getInstance(new Configuration());
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(Text.class); 
+        job.setMapperClass(Map.class); 
+        //job.setReducerClass(Reduce.class);
+
+        job.setInputFormatClass(TextInputFormat.class);
+        job.setOutputFormatClass(TextOutputFormat.class);
+        job.setNumReduceTasks(0);
+
+        //File IO
+        FileInputFormat.setInputPaths(job, new Path(args[0]));
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+ 
+        //Run
+        job.setJarByClass(WordCount.class);
+        job.waitForCompletion(true);
+         
+         
+		}
+	
+	}
