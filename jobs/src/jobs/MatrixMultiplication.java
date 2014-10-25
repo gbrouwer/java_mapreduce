@@ -2,7 +2,7 @@ package jobs;
 
 import java.io.IOException;
 import java.util.*;
- 
+
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.conf.*;
 import org.apache.hadoop.io.*;
@@ -104,14 +104,20 @@ public class MatrixMultiplication
     	//Read Parameters
         Path inPath = new Path(args[0]);
         Path outPath =  new Path(args[1]);
+        String Mdim = new String(args[2]);
+        String Ndim = new String(args[3]);
+        String Pdim = new String(args[4]);
         
-    	Configuration conf = new Configuration();
-        conf.set("m", "2");
-        conf.set("n", "5");
-        conf.set("p", "3");
         
         //Configuration
-        Job job = Job.getInstance(new Configuration());
+        Configuration conf = new Configuration();
+        conf.set("m", Mdim);
+        conf.set("n", Ndim);
+        conf.set("p", Pdim);
+
+
+        //Job
+        Job job = Job.getInstance(conf);
         job.setJarByClass(MatrixMultiplication.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
@@ -120,6 +126,7 @@ public class MatrixMultiplication
         job.setInputFormatClass(TextInputFormat.class);
         job.setOutputFormatClass(TextOutputFormat.class); 
 
+        
         //Set IO
         FileInputFormat.addInputPath(job, inPath);
         FileOutputFormat.setOutputPath(job, outPath);

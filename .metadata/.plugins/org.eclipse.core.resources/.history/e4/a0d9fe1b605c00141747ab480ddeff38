@@ -1,0 +1,113 @@
+package jobs;
+
+import java.io.IOException;
+import java.util.Iterator;
+
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+
+
+
+//-------------------------------------------------------------------------------------
+public class NaturalJoin 
+	{
+
+	
+	//---------------------------------------------------------------------------------
+	public static class Map extends Mapper<Object, Text, Text, Text> 
+		{
+
+		private Text keytext = new Text();
+		private Text valuetext = new Text();
+		
+		@Override
+		public void map(Object key, Text value, Context context) throws IOException, InterruptedException 
+			{
+		
+			//Split into elements
+			String[] elements;
+			elements = value.toString().split(",");
+			if (elements[0].equals("a"))
+				{
+				keytext.set(elements[2]);
+				valuetext.set(elements[0] + "," + elements[1]);
+				}
+			else
+				{
+				keytext.set(elements[1]);
+				valuetext.set(elements[0] + "," + elements[2]);
+				}
+
+			
+			//Emit Key and Value
+			context.write(keytext,valuetext);
+
+			}
+		}
+
+	
+	//---------------------------------------------------------------------------------
+	public static class Reduce extends Reducer<Text, Text, Text, Text> 
+		{
+  
+		private Text mytext = new Text();
+		private String mystring = new String();
+		
+		@Override
+		public void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException 
+			{
+
+			//int count = 0;
+			
+			Iterator<Text> iterator = values.iterator();
+			while (iterator.hasNext()) 
+				{
+				mytext = iterator.next();
+				mystring = mystring + "(" + mytext.toString() + ")";
+				}			
+			//totalCount.set(count);
+			context.write(key, values);
+			
+			}
+		}
+
+
+	
+	//---------------------------------------------------------------------------------
+	public static void main(String[] args) throws Exception 
+		{
+   
+		//Job Configuration
+        Job job = Job.getInstance(new Configuration());
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(Text.class); 
+        job.setMapperClass(Map.class); 
+
+        //job.setReducerClass(Reduce.class);
+        job.setNumReduceTasks(0);
+        
+        //Input and Output classes
+        job.setInputFormatClass(TextInputFormat.class);
+        job.setOutputFormatClass(TextOutputFormat.class);
+
+        
+        //File IO
+        FileInputFormat.setInputPaths(job, new Path(args[0]));
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+ 
+        //Run
+        job.setJarByClass(WordCount.class);
+        job.waitForCompletion(true);
+         
+         
+		}
+	
+	}
